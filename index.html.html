@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>orchestra HUB - オーケストラ総合管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: flex; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden text-sm">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-[200] font-bold text-xs"></div>
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="flex flex-col md:flex-row w-full h-full relative overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 h-full flex-shrink-0 z-10 border-r border-slate-800">
+            <!-- User Profile -->
+            <div onclick="openModal('profileModal')" class="p-4 border-b border-slate-800 flex items-center gap-3 cursor-pointer hover:bg-slate-800 transition">
+                <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-sm">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="truncate flex-1">
+                    <h1 id="sbUserName" class="font-bold text-white text-sm truncate">未ログイン</h1>
+                    <p id="sbUserEmail" class="text-[10px] text-slate-400 truncate">...</p>
+                </div>
+                <i class="fa-solid fa-gear text-slate-500 text-xs"></i>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="p-2 space-y-1 border-b border-slate-800">
+                <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-calendar-days w-5 text-center"></i>カレンダー</button>
+                <button onclick="switchTab('task')" id="nav-task" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-list-check w-5 text-center"></i>タスク管理</button>
+                <button onclick="switchTab('roster')" id="nav-roster" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-users-rectangle w-5 text-center"></i>乗り番表</button>
+                <button onclick="switchTab('sheet')" id="nav-sheet" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-file-pdf w-5 text-center"></i>楽譜置き場</button>
+                <button onclick="switchTab('media')" id="nav-media" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-photo-film w-5 text-center"></i>録音・録画</button>
+                <button onclick="switchTab('chat')" id="nav-chat" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-comments w-5 text-center"></i>チャット</button>
+                <button onclick="switchTab('bbs')" id="nav-bbs" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition"><i class="fa-solid fa-globe w-5 text-center"></i>総合掲示板</button>
+            </nav>
+
+            <!-- Group List -->
+            <div class="flex-1 p-3 overflow-y-auto no-scrollbar">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">参加中のカレンダー</p>
+                <div id="sbGroups" class="space-y-1.5 text-xs"></div>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <main class="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
+            <!-- Header (Actions) -->
+            <header class="h-14 border-b flex items-center justify-end px-4 gap-2 bg-white shadow-sm z-10 shrink-0">
+                <div id="cloudIndicator" class="mr-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded hidden"><i class="fa-solid fa-cloud-arrow-up"></i> 同期中</div>
+                <button onclick="openModal('createGroupModal')" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold border"><i class="fa-solid fa-users"></i> 団体登録</button>
+                <button onclick="openModal('joinGroupModal')" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold border"><i class="fa-solid fa-right-to-bracket"></i> コードで参加</button>
+                <button onclick="openModal('issueCodeModal')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-bold border border-indigo-200 hidden btn-manager"><i class="fa-solid fa-key"></i> 招待コード発行</button>
+            </header>
+
+            <!-- TABS -->
+            <!-- Calendar Tab -->
+            <section id="tab-calendar" class="tab-content active flex-col h-full overflow-hidden">
+                <div class="p-3 flex items-center justify-between border-b">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-lg font-bold text-slate-800" id="calYM"></h2>
+                        <div class="flex bg-slate-100 rounded border">
+                            <button onclick="chgMonth(-1)" class="px-2 py-1 hover:bg-slate-200"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                            <button onclick="chgMonth(0)" class="px-3 py-1 text-xs font-bold border-x">今月</button>
+                            <button onclick="chgMonth(1)" class="px-2 py-1 hover:bg-slate-200"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 flex overflow-hidden p-3 gap-3 bg-slate-50">
+                    <div class="flex-1 border bg-white rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div class="grid grid-cols-7 bg-slate-50 border-b text-center text-xs font-bold text-slate-500 py-1.5">
+                            <div class="text-rose-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-sky-500">土</div>
+                        </div>
+                        <div id="calGrid" class="flex-1 grid grid-cols-7 grid-rows-5 gap-px bg-slate-200 overflow-y-auto"></div>
+                    </div>
+                    <div class="w-80 border bg-white rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div class="p-2.5 bg-slate-50 border-b font-bold text-slate-700 text-xs flex justify-between items-center">
+                            <span><span id="selDateText"></span>の予定</span>
+                        </div>
+                        <div id="selDateEvents" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Task Tab -->
+            <section id="tab-task" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-4">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-3">
+                    <h2 class="font-bold text-slate-800"><i class="fa-solid fa-list-check text-sky-600 mr-2"></i>タスク管理</h2>
+                    <button id="btnCreateTask" onclick="openModal('taskModal')" class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hidden btn-manager">＋ タスク追加</button>
+                </div>
+                <div id="taskListContainer" class="flex-1 overflow-y-auto space-y-4"></div>
+            </section>
+
+            <!-- Roster Tab -->
+            <section id="tab-roster" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-4">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-3">
+                    <h2 class="font-bold text-slate-800"><i class="fa-solid fa-users-rectangle text-emerald-600 mr-2"></i>乗り番表</h2>
+                    <button id="btnCreateRoster" onclick="openModal('rosterReqModal')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hidden btn-manager">＋ 回答依頼作成</button>
+                </div>
+                <div class="flex flex-1 gap-4 overflow-hidden">
+                    <div class="w-1/2 flex flex-col bg-white border rounded-xl shadow-sm overflow-hidden">
+                        <div class="p-2.5 bg-amber-50 border-b font-bold text-amber-900 text-xs">あなたへの回答依頼</div>
+                        <div id="rostReqList" class="flex-1 p-3 overflow-y-auto space-y-2"></div>
+                    </div>
+                    <div class="w-1/2 flex flex-col bg-white border rounded-xl shadow-sm overflow-hidden">
+                        <div class="p-2.5 bg-slate-50 border-b font-bold text-slate-700 text-xs">確定済み乗り番</div>
+                        <div id="rostAnsList" class="flex-1 p-3 overflow-y-auto space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Archive Tabs (Sheet / Media) -->
+            <section id="tab-sheet" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-4">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-3">
+                    <h2 class="font-bold text-slate-800"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i>楽譜置き場</h2>
+                    <div class="flex gap-2">
+                        <button onclick="openFolderModal('sheet')" class="btn-create-archive bg-slate-100 border text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hidden btn-manager"><i class="fa-solid fa-folder-plus"></i> フォルダ作成</button>
+                        <button onclick="openLinkModal('sheet')" class="btn-create-archive bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hidden btn-manager"><i class="fa-solid fa-file-circle-plus"></i> ファイル登録</button>
+                    </div>
+                </div>
+                <div id="sheetContainer" class="flex-1 overflow-y-auto space-y-3"></div>
+            </section>
+
+            <section id="tab-media" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-4">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-3">
+                    <h2 class="font-bold text-slate-800"><i class="fa-solid fa-photo-film text-purple-500 mr-2"></i>録音・録画置き場</h2>
+                    <div class="flex gap-2">
+                        <button onclick="openFolderModal('media')" class="btn-create-archive bg-slate-100 border text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hidden btn-manager"><i class="fa-solid fa-folder-plus"></i> フォルダ作成</button>
+                        <button onclick="openLinkModal('media')" class="btn-create-archive bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hidden btn-manager"><i class="fa-solid fa-file-circle-plus"></i> ファイル登録</button>
+                    </div>
+                </div>
+                <div id="mediaContainer" class="flex-1 overflow-y-auto space-y-3"></div>
+            </section>
+
+            <!-- Chat Tab -->
+            <section id="tab-chat" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-3">
+                <div class="flex-1 flex gap-3 overflow-hidden">
+                    <div class="w-64 bg-white border rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div class="p-2.5 bg-slate-50 border-b flex justify-between items-center">
+                            <span class="font-bold text-slate-700 text-xs">ルーム一覧</span>
+                            <button id="btnCreateChat" onclick="openCreateChatModal()" class="text-indigo-600 hover:bg-indigo-50 px-1.5 py-0.5 rounded text-xs font-bold hidden btn-manager">＋作成</button>
+                        </div>
+                        <div id="chatRoomList" class="flex-1 overflow-y-auto space-y-0.5"></div>
+                    </div>
+                    <div class="flex-1 bg-white border rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div id="chatActiveHead" class="p-3 bg-slate-50 border-b flex items-center justify-between"></div>
+                        <div id="chatMsgBox" class="flex-1 p-4 overflow-y-auto bg-slate-50/50 space-y-3"></div>
+                        <div id="chatInputArea" class="p-3 bg-white border-t flex gap-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BBS Tab -->
+            <section id="tab-bbs" class="tab-content flex-col h-full overflow-hidden bg-slate-50 p-3">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-3">
+                    <h2 class="font-bold text-slate-800"><i class="fa-solid fa-globe text-orange-500 mr-2"></i>総合掲示板 (公開SNS)</h2>
+                    <button onclick="openModal('createBbsModal')" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow">＋ 新規投稿</button>
+                </div>
+                <div class="flex-1 flex gap-3 overflow-hidden">
+                    <div class="w-1/3 bg-white border rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div class="p-2.5 bg-slate-50 border-b font-bold text-slate-700 text-xs flex gap-2 overflow-x-auto no-scrollbar">
+                            <span class="cursor-pointer text-orange-600 border-b-2 border-orange-600 whitespace-nowrap">すべて</span>
+                            <span class="cursor-pointer text-slate-500 hover:text-slate-700 whitespace-nowrap">演奏会情報</span>
+                            <span class="cursor-pointer text-slate-500 hover:text-slate-700 whitespace-nowrap">エキストラ</span>
+                        </div>
+                        <div id="bbsList" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+                    </div>
+                    <div class="flex-1 bg-white border rounded-xl shadow-sm flex flex-col overflow-hidden">
+                        <div id="bbsActiveHead" class="p-4 bg-orange-50/30 border-b"></div>
+                        <div id="bbsReplies" class="flex-1 p-4 overflow-y-auto space-y-3"></div>
+                        <div class="p-3 bg-white border-t flex gap-2">
+                            <input type="text" id="bbsReplyInput" placeholder="コメントする..." class="flex-1 border rounded p-2 text-xs outline-none">
+                            <button onclick="sendBbsReply()" class="px-4 py-2 bg-slate-800 text-white rounded font-bold text-xs">書き込む</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+    
+    <!-- Auth Modal (初期) -->
+    <div id="authModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div class="text-center mb-2">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-600 text-white text-2xl shadow-lg mb-2"><i class="fa-solid fa-music"></i></div>
+                <h2 class="text-xl font-bold text-slate-800">orchestra HUB</h2>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div><label class="block font-bold text-slate-600 mb-1">お名前 (フルネーム推奨)</label><input type="text" id="authName" value="山田 太郎" class="w-full border rounded p-2 outline-none"></div>
+                <div><label class="block font-bold text-slate-600 mb-1">メールアドレス</label><input type="email" id="authEmail" value="user@example.com" class="w-full border rounded p-2 outline-none"></div>
+                <div><label class="block font-bold text-slate-600 mb-1">パスワード</label><input type="password" id="authPass" value="pass123" class="w-full border rounded p-2 outline-none"></div>
+                <div><label class="block font-bold text-slate-600 mb-1">自分のパート</label>
+                    <select id="authPart" class="w-full border rounded p-2">
+                        <option value="Vn">Vn</option><option value="Va">Va</option><option value="Vc">Vc</option>
+                        <option value="Cb">Cb</option><option value="Fl">Fl</option><option value="Ob">Ob</option>
+                        <option value="Cl">Cl</option><option value="Hr">Hr</option><option value="Tp">Tp</option>
+                        <option value="Tb">Tb</option><option value="Tuba">Tuba</option><option value="Perc">Perc</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                <button onclick="submitAuth()" class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded shadow hover:bg-emerald-700">利用を開始する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal (パスワード認証付き) -->
+    <div id="profileModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between border-b pb-2">
+                <h3 class="font-bold text-slate-800"><i class="fa-solid fa-user-gear text-emerald-600"></i> プロフィール設定</h3>
+                <button onclick="closeModal('profileModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 border-b pb-4 text-xs">
+                <h4 class="font-bold text-slate-700">基本情報の変更</h4>
+                <input type="text" id="profName" class="w-full border rounded p-2" placeholder="名前" disabled>
+                <p class="text-[10px] text-slate-400">※テスト環境のため名前の変更は制限されています。</p>
+                <input type="email" id="profEmail" class="w-full border rounded p-2" placeholder="メール">
+                <input type="password" id="profCurPass" class="w-full border rounded p-2 border-rose-200" placeholder="現在のパスワード (必須)">
+                <button onclick="updateProfile()" class="w-full py-2 bg-slate-800 text-white rounded font-bold">情報を更新</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <h4 class="font-bold text-slate-700">パスワード変更 (3ステップ)</h4>
+                <div id="pwdS1">
+                    <input type="email" id="pwdAuthEmail" class="w-full border rounded p-2 mb-2" placeholder="登録メールアドレス">
+                    <button onclick="sendPwdCode()" class="w-full py-2 bg-emerald-600 text-white rounded font-bold">認証コード送信</button>
+                </div>
+                <div id="pwdS2" class="hidden space-y-2">
+                    <p class="text-[10px] text-emerald-600 font-bold">※認証コード送信済 (デモ:123456)</p>
+                    <input type="text" id="pwdCode" class="w-full border rounded p-2 text-center tracking-widest font-mono" placeholder="123456">
+                    <input type="password" id="pwdNewPass" class="w-full border rounded p-2" placeholder="新しいパスワード">
+                    <button onclick="updatePassword()" class="w-full py-2 bg-emerald-600 text-white rounded font-bold">パスワード変更</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div id="createGroupModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <div class="flex justify-between border-b pb-2">
+                <h3 class="font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-600"></i> 団体登録</h3>
+                <button onclick="closeModal('createGroupModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div><label class="block font-bold text-slate-600 mb-1">団体名</label>
+                    <input type="text" id="cgName" placeholder="例: 青山オーケストラ" class="w-full border rounded p-2">
+                </div>
+                <div><label class="block font-bold text-slate-600 mb-1">団体パスワード (招待等に必要)</label>
+                    <input type="password" id="cgPass" placeholder="パスワードを設定" class="w-full border rounded p-2">
+                </div>
+                <button onclick="submitCreateGroup()" class="w-full py-2 bg-indigo-600 text-white font-bold rounded">登録して設立</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issue Code Modal -->
+    <div id="issueCodeModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <div class="flex justify-between border-b pb-2">
+                <h3 class="font-bold text-slate-800"><i class="fa-solid fa-key text-emerald-600"></i> 招待コード発行</h3>
+                <button onclick="closeModal('issueCodeModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div><label class="block font-bold text-slate-600 mb-1">対象団体</label><select id="icGroup" class="w-full border rounded p-2"></select></div>
+                <div><label class="block font-bold text-slate-600 mb-1">団体パスワード</label><input type="password" id="icPass" class="w-full border rounded p-2"></div>
+                <div><label class="block font-bold text-slate-600 mb-1">付与する権限</label>
+                    <select id="icRole" class="w-full border rounded p-2"><option value="manager">管理者</option><option value="admin">運営</option><option value="leader">パートリーダー</option><option value="member">一般</option></select>
+                </div>
+                <button onclick="generateInviteCode()" class="w-full py-2 bg-emerald-600 text-white font-bold rounded">コード生成</button>
+                <div id="icResult" class="hidden p-3 bg-slate-50 border rounded text-center">
+                    <p class="text-[10px] text-slate-500 mb-1">生成されたコード</p>
+                    <p id="icCodeText" class="font-mono text-lg font-bold text-emerald-700 tracking-wider mb-2"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Group Modal -->
+    <div id="joinGroupModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <div class="flex justify-between border-b pb-2">
+                <h3 class="font-bold text-slate-800">コードで団体に参加</h3>
+                <button onclick="closeModal('joinGroupModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <input type="text" id="jgCode" placeholder="招待コードを入力" class="w-full border rounded p-2 font-mono text-center tracking-widest text-lg">
+                <button onclick="joinGroup()" class="w-full py-2 bg-slate-800 text-white font-bold rounded">参加する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Modal (予定追加) -->
+    <div id="eventModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-calendar-plus text-emerald-600"></i> 予定の作成</h3>
+                <button onclick="closeModal('eventModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <select id="evTarget" onchange="toggleEvFields()" class="w-full border rounded p-2 font-bold bg-slate-50"></select>
+                <input type="text" id="evTitle" placeholder="タイトル" class="w-full border rounded p-2">
+                <div class="flex gap-2">
+                    <input type="date" id="evDate" class="w-1/2 border rounded p-2">
+                    <input type="text" id="evLoc" placeholder="場所" class="w-1/2 border rounded p-2 group-field">
+                </div>
+                <div class="flex gap-2 group-field">
+                    <select id="evStart" class="w-1/2 border rounded p-2"></select>
+                    <select id="evEnd" class="w-1/2 border rounded p-2"></select>
+                </div>
+                <textarea id="evMemo" rows="3" maxlength="1000" placeholder="詳細 (1000文字以内)" class="w-full border rounded p-2 group-field"></textarea>
+                
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded">
+                    <label class="flex items-center gap-2 font-bold text-amber-900"><input type="checkbox" id="evRemindChk" onchange="document.getElementById('evRemindBox').classList.toggle('hidden', !this.checked)">リマインド配信</label>
+                    <div id="evRemindBox" class="hidden mt-2 space-y-2">
+                        <input type="datetime-local" id="evRemindDate" class="w-full border rounded p-1.5 bg-white">
+                        <select id="evRemindTarget" class="w-full border rounded p-1.5 bg-white group-field"><option value="all">全員</option><option value="unans">未回答者</option></select>
+                        <select id="evRemindRoom" class="w-full border rounded p-1.5 bg-white"></select>
+                        <input type="text" id="evRemindMsg" placeholder="配信文言" class="w-full border rounded p-1.5 bg-white">
+                    </div>
+                </div>
+                <button onclick="saveEvent()" class="w-full py-2 bg-emerald-600 text-white font-bold rounded">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Detail Modal (ワンクリックで開く詳細＆出欠＆乗り番) -->
+    <div id="evDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between border-b pb-2">
+                <h3 id="edTitle" class="font-bold text-slate-800 text-base"></h3>
+                <button onclick="closeModal('evDetailModal')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="edMeta" class="bg-slate-50 p-3 rounded text-xs space-y-1"></div>
+            
+            <div id="edAttInput" class="p-3 bg-emerald-50 border border-emerald-200 rounded text-xs hidden">
+                <h4 class="font-bold text-emerald-900 mb-2">自分の出欠回答</h4>
+                <div class="flex items-center gap-3">
+                    <label><input type="radio" name="edAtt" value="出席"> 出席</label>
+                    <label><input type="radio" name="edAtt" value="欠席"> 欠席</label>
+                    <label><input type="radio" name="edAtt" value="遅刻"> 遅刻</label>
+                    <input type="text" id="edAttOther" placeholder="その他(任意)" class="border rounded p-1 w-24">
+                    <button onclick="saveAtt()" class="px-2 py-1 bg-emerald-600 text-white rounded font-bold">保存</button>
+                </div>
+            </div>
+
+            <div id="edAdminUnans" class="p-2 bg-rose-50 border border-rose-200 rounded text-xs hidden">
+                <h4 class="font-bold text-rose-900">未回答者 (管理者用)</h4>
+                <p id="edAdminUnansList" class="text-[10px] text-rose-700 mt-1"></p>
+            </div>
+
+            <div id="edCrossBox" class="space-y-2 hidden">
+                <h4 class="font-bold text-xs text-slate-700 border-b pb-1">出欠・乗り番一覧</h4>
+                <div id="edCrossList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2"><i class="fa-solid fa-list-check text-sky-600"></i> タスク作成</h3>
+            <div class="space-y-3 text-xs">
+                <select id="tkTarget" class="w-full border rounded p-2 bg-slate-50 font-bold"></select>
+                <input type="text" id="tkTitle" placeholder="タスク名" class="w-full border rounded p-2">
+                <input type="date" id="tkLimit" class="w-full border rounded p-2">
+                <div class="p-3 bg-sky-50 border border-sky-200 rounded">
+                    <label class="flex items-center gap-2 font-bold text-sky-900 cursor-pointer">
+                        <input type="checkbox" id="tkRemindChk" onchange="if(this.checked){ openModal('taskRemindModal'); } else { state.taskRemindTemp.enabled = false; }">
+                        リマインド配信設定
+                    </label>
+                </div>
+                <div class="flex gap-2"><button onclick="closeModal('taskModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold">中止</button><button onclick="saveTask()" class="w-2/3 py-2 bg-sky-600 text-white rounded font-bold">作成</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Remind Popup Modal (ポップアップ) -->
+    <div id="taskRemindModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-5 space-y-4 border-t-4 border-sky-500">
+            <h3 class="font-bold text-sky-900 border-b pb-2"><i class="fa-solid fa-bell"></i> タスク リマインド設定</h3>
+            <div class="space-y-3 text-xs">
+                <div><label class="block font-bold mb-1">配信日時</label><input type="datetime-local" id="tkRemindDate" class="w-full border rounded p-1.5"></div>
+                <div><label class="block font-bold mb-1">対象者</label>
+                    <select id="tkRemindTarget" class="w-full border rounded p-1.5"><option value="all">全員</option><option value="unans">未回答者 (メンション付き)</option></select>
+                </div>
+                <div><label class="block font-bold mb-1">投稿先トークルーム</label><select id="tkRemindRoom" class="w-full border rounded p-1.5"></select></div>
+                <div><label class="block font-bold mb-1">配信文言</label><input type="text" id="tkRemindMsg" placeholder="締切が近づいています" class="w-full border rounded p-1.5"></div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="cancelTaskRemind()" class="w-1/3 py-2 bg-slate-100 rounded font-bold">キャンセル</button>
+                    <button onclick="confirmTaskRemind()" class="w-2/3 py-2 bg-sky-600 text-white rounded font-bold">設定を保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Chat Modal (ルーム作成) -->
+    <div id="createChatModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4 max-h-[90vh] flex flex-col">
+            <h3 class="font-bold text-slate-800 border-b pb-2"><i class="fa-solid fa-comments text-indigo-600"></i> トークルーム作成</h3>
+            <div class="space-y-3 text-xs overflow-y-auto flex-1 p-1">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">対象団体</label>
+                    <select id="ccTarget" class="w-full border rounded p-2 bg-slate-50 font-bold"></select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">ルーム名</label>
+                    <input type="text" id="ccName" placeholder="例: 定期演奏会 企画用" class="w-full border rounded p-2">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">発言権限</label>
+                    <select id="ccPostRole" class="w-full border rounded p-2">
+                        <option value="all">参加者全員が発言可能</option>
+                        <option value="leader">パートリーダー以上が発言可能</option>
+                        <option value="admin">管理者・運営のみ発言可能</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-bold text-slate-600">参加者の選択</label>
+                        <label class="font-bold text-indigo-600 cursor-pointer flex items-center gap-1">
+                            <input type="checkbox" id="ccCheckAll" onchange="toggleAllChatMembers(this.checked)" checked> 全員追加
+                        </label>
+                    </div>
+                    <div id="ccMembers" class="border rounded p-2 max-h-40 overflow-y-auto space-y-1 bg-slate-50">
+                        <!-- メンバーリスト JSで生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 shrink-0 pt-2 border-t">
+                <button onclick="closeModal('createChatModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold text-xs">中止</button>
+                <button onclick="saveChatRoom()" class="w-2/3 py-2 bg-indigo-600 text-white rounded font-bold text-xs shadow hover:bg-indigo-700">作成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Modal -->
+    <div id="folderModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2">フォルダ作成</h3>
+            <div class="space-y-3 text-xs">
+                <select id="fmTarget" class="w-full border rounded p-2 bg-slate-50"></select>
+                <input type="text" id="fmName" placeholder="フォルダ名" class="w-full border rounded p-2">
+                <input type="hidden" id="fmType">
+                <div class="flex gap-2"><button onclick="closeModal('folderModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold">中止</button><button onclick="saveFolder()" class="w-2/3 py-2 bg-slate-800 text-white rounded font-bold">作成</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Link Modal -->
+    <div id="linkModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2">ファイル登録</h3>
+            <div class="space-y-3 text-xs">
+                <select id="lmTarget" onchange="updateFolderOptions()" class="w-full border rounded p-2 bg-slate-50"></select>
+                <select id="lmFolder" class="w-full border rounded p-2"><option value="">未分類 (フォルダなし)</option></select>
+                <input type="text" id="lmName" placeholder="ファイルタイトル" class="w-full border rounded p-2">
+                <input type="url" id="lmUrl" placeholder="URL (GoogleDrive等)" class="w-full border rounded p-2">
+                <input type="hidden" id="lmType">
+                <div class="flex gap-2"><button onclick="closeModal('linkModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold">中止</button><button onclick="saveLink()" class="w-2/3 py-2 bg-rose-600 text-white rounded font-bold">保存</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move File Modal -->
+    <div id="moveModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2">移動先のフォルダを指定</h3>
+            <div class="space-y-3 text-xs">
+                <select id="moveFolderSelect" class="w-full border rounded p-2"></select>
+                <input type="hidden" id="moveLinkId">
+                <div class="flex gap-2">
+                    <button onclick="closeModal('moveModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold">中止</button>
+                    <button onclick="confirmMoveArchive()" class="w-2/3 py-2 bg-indigo-600 text-white rounded font-bold">移動する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BBS Modal -->
+    <div id="createBbsModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="font-bold text-slate-800 border-b pb-2">掲示板に投稿</h3>
+            <div class="space-y-3 text-xs">
+                <select id="bbsCat" class="w-full border rounded p-2"><option>演奏会情報</option><option>エキストラ募集</option><option>楽団員募集</option><option>挟み込み募集</option><option>その他</option></select>
+                <input type="text" id="bbsTitle" placeholder="タイトル" class="w-full border rounded p-2">
+                <textarea id="bbsDesc" rows="4" placeholder="説明文" class="w-full border rounded p-2"></textarea>
+                <input type="text" id="bbsContact" placeholder="連絡先 (任意)" class="w-full border rounded p-2">
+                <input type="text" id="bbsImgUrl" placeholder="画像/URL (任意)" class="w-full border rounded p-2">
+                <div class="flex gap-2"><button onclick="closeModal('createBbsModal')" class="w-1/3 py-2 bg-slate-100 rounded font-bold">中止</button><button onclick="saveBbs()" class="w-2/3 py-2 bg-orange-500 text-white rounded font-bold">投稿公開</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Real-time Integration Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State (Replaces memory state with synced state)
+        const state = {
+            currentUser: null, // { name, email, password, part, userGroups: [] }
+            groups: [],
+            members: [],
+            activeTab: "calendar",
+            selDate: new Date().toISOString().split('T')[0],
+            dispMonth: new Date(),
+            events: [],
+            attendances: {}, 
+            tasks: [],
+            taskRemindTemp: { enabled: false },
+            rosters: [],
+            folders: [],
+            links: [],
+            chatRooms: [],
+            activeChat: null,
+            bbs: [],
+            activeBbs: null
+        };
+        window.state = state; // export for debugging if needed
+
+        // Firebase Initialization variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-orchestra-hub';
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        let app, db, auth;
+
+        async function initCloud() {
+            if (!firebaseConfigStr) {
+                console.warn("Local Mode: Firebase config not found. Data will reset on reload.");
+                return;
+            }
+            try {
+                const firebaseConfig = JSON.parse(firebaseConfigStr);
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                if (auth.currentUser) {
+                    document.getElementById('cloudIndicator').classList.remove('hidden');
+                    setupRealtimeSync();
+                }
+            } catch(e) {
+                console.error("Cloud init failed:", e);
+                showToast("データベースの接続に失敗しました");
+            }
+        }
+
+        // Firestore Paths (Strictly adhering to RULE 1)
+        function getBasePath(colName) {
+            return collection(db, 'artifacts', appId, 'public', 'data', colName);
+        }
+        function getDocRef(colName, docId) {
+            return doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+        }
+
+        // Set up real-time listeners for all collections
+        function setupRealtimeSync() {
+            const collections = ['groups', 'members', 'events', 'attendances', 'tasks', 'folders', 'links', 'chatRooms', 'bbs', 'rosters'];
+            collections.forEach(col => {
+                onSnapshot(getBasePath(col), (snap) => {
+                    const data = [];
+                    snap.forEach(d => data.push(d.data()));
+
+                    if (col === 'attendances') {
+                        state.attendances = {};
+                        data.forEach(d => { state.attendances[d.id] = d.data; });
+                    } else if (col === 'members') {
+                        state.members = data;
+                        if (state.currentUser) {
+                            const updatedMe = data.find(m => m.name === state.currentUser.name);
+                            if (updatedMe) state.currentUser = updatedMe;
+                        }
+                    } else {
+                        state[col] = data;
+                    }
+
+                    if (state.currentUser) {
+                        updateUIAll();
+                    }
+                }, (error) => console.error("Snapshot error:", col, error));
+            });
+        }
+
+        // Generate initial data for the first user
+        async function seedInitialData() {
+            if (!db) return;
+            if (state.groups.length === 0) {
+                await setDoc(getDocRef('groups', 'g_1'), { id: "g_1", name: "デモ交響楽団", password: "demo", color: "#3b82f6" });
+                await setDoc(getDocRef('chatRooms', 'cr_1'), {id:"cr_1", gid:"g_1", name:"全体連絡", members: [state.currentUser.name], postRole:"all", msgs:[{sender:"システム",text:"ルームが作成されました"}]});
+                await setDoc(getDocRef('events', 'ev_1'), {id:"ev_1", gid:"g_1", title:"秋季定期演奏会", date:state.selDate, time:"13:00-17:00", loc:"市民会館", memo:"本番"});
+                await setDoc(getDocRef('tasks', 'tk_1'), {id:"tk_1", gid:"g_1", title:"パンフレット原稿提出", limit:"2026-11-01"});
+                await setDoc(getDocRef('folders', 'f_1'), {id:"f_1", type:"sheet", gid:"g_1", name:"過去の定期演奏会スコア"});
+                await setDoc(getDocRef('links', 'l_1'), {id:"l_1", type:"sheet", gid:"g_1", folderId:"f_1", name:"交響曲第5番 フルスコア", url:"#"});
+                await setDoc(getDocRef('bbs', 'b_1'), {id:"b_1", cat:"エキストラ募集", title:"【急募】ホルン1名", desc:"12月本番のホルン奏者募集します。", author:"システム", contact:"", replies:[]});
+            }
+        }
+
+        // --- Functions ---
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('opacity-0');
+            setTimeout(() => t.classList.add('opacity-0'), 3000);
+        }
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function toggleMenu(id) {
+            const el = document.getElementById(id);
+            const isHidden = el.classList.contains('hidden');
+            document.querySelectorAll('.archive-menu').forEach(m => m.classList.add('hidden'));
+            if(isHidden) el.classList.remove('hidden');
+        }
+
+        async function submitAuth() {
+            const n = document.getElementById('authName').value;
+            const e = document.getElementById('authEmail').value;
+            const p = document.getElementById('authPass').value;
+            const pt = document.getElementById('authPart').value;
+            if(!n || !e || !p) { showToast("必須入力です"); return; }
+            
+            // Check if user already exists in DB
+            let userDoc = state.members.find(m => m.name === n);
+            if (!userDoc) {
+                userDoc = { name: n, email: e, password: p, part: pt, userGroups: [{ groupId: "g_1", role: "manager" }] };
+            } else if (userDoc.password !== p) {
+                showToast("パスワードが違います (この名前は既に使用されています)");
+                return;
+            }
+
+            state.currentUser = userDoc;
+            
+            if (db) {
+                await setDoc(getDocRef('members', n), userDoc);
+                await seedInitialData(); // creates g_1 if it doesn't exist
+            } else {
+                if(!state.members.find(m => m.name === n)) state.members.unshift(userDoc);
+            }
+            
+            document.getElementById('sbUserName').textContent = n;
+            document.getElementById('sbUserEmail').textContent = e;
+            document.getElementById('profName').value = n;
+            document.getElementById('profEmail').value = e;
+            
+            closeModal('authModal');
+            updateUIAll();
+            showToast("ログインしました");
+        }
+
+        async function updateProfile() {
+            const cp = document.getElementById('profCurPass').value;
+            if(cp !== state.currentUser.password) { showToast("現在のパスワードが違います"); return; }
+            
+            state.currentUser.email = document.getElementById('profEmail').value;
+            // Name update is disabled in test mode to prevent ID issues
+            
+            if (db) await setDoc(getDocRef('members', state.currentUser.name), state.currentUser);
+            
+            document.getElementById('sbUserEmail').textContent = state.currentUser.email;
+            document.getElementById('profCurPass').value = "";
+            showToast("更新しました");
+        }
+
+        function sendPwdCode() {
+            const e = document.getElementById('pwdAuthEmail').value;
+            if(e !== state.currentUser.email) { showToast("登録アドレスと一致しません"); return; }
+            document.getElementById('pwdS1').classList.add('hidden');
+            document.getElementById('pwdS2').classList.remove('hidden');
+        }
+
+        async function updatePassword() {
+            if(document.getElementById('pwdCode').value !== "123456") { showToast("コードが違います"); return; }
+            state.currentUser.password = document.getElementById('pwdNewPass').value;
+            
+            if(db) await setDoc(getDocRef('members', state.currentUser.name), state.currentUser);
+            
+            showToast("パスワードを変更しました");
+            closeModal('profileModal');
+        }
+
+        function updateUIAll() {
+            if(!state.currentUser) return;
+            renderSidebar();
+            populateTargetSelects();
+            updatePermissions();
+            chgMonth(0); 
+            renderEvents(state.selDate);
+            renderTasks();
+            renderRosters();
+            renderArchives('sheet');
+            renderArchives('media');
+            renderChatList();
+            renderBbsList();
+        }
+
+        function renderSidebar() {
+            const sb = document.getElementById('sbGroups');
+            sb.innerHTML = `<div class="flex items-center gap-2 p-1.5 text-slate-300"><span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>個人カレンダー</div>`;
+            (state.currentUser.userGroups || []).forEach(ug => {
+                const g = state.groups.find(x => x.id === ug.groupId);
+                if(g) sb.innerHTML += `<div class="flex items-center gap-2 p-1.5 text-white font-bold"><span class="w-2.5 h-2.5 rounded-full" style="background-color:${g.color}"></span>${g.name} <span class="text-[9px] bg-slate-700 px-1 rounded ml-auto">${ug.role}</span></div>`;
+            });
+        }
+
+        function populateTargetSelects() {
+            const targets = [document.getElementById('tkTarget'), document.getElementById('fmTarget'), document.getElementById('lmTarget'), document.getElementById('ccTarget')];
+            const icGroup = document.getElementById('icGroup');
+            
+            targets.forEach(el => { if(el) el.innerHTML = ""; });
+            if(icGroup) icGroup.innerHTML = "";
+            
+            const evT = document.getElementById('evTarget');
+            if(evT) evT.innerHTML = `<option value="personal">個人カレンダー</option>`;
+
+            (state.currentUser.userGroups || []).forEach(ug => {
+                const g = state.groups.find(x => x.id === ug.groupId);
+                if(g) {
+                    const opt = `<option value="${g.id}">${g.name}</option>`;
+                    if(ug.role === 'manager' || ug.role === 'admin') {
+                        targets.forEach(el => { if(el) el.innerHTML += opt; });
+                        if(evT) evT.innerHTML += opt;
+                    }
+                    if(ug.role === 'manager') {
+                        if(icGroup) icGroup.innerHTML += opt;
+                    }
+                }
+            });
+            populateChatOpts();
+        }
+
+        function updatePermissions() {
+            let isAnyManager = (state.currentUser.userGroups || []).some(ug => ug.role === 'manager' || ug.role === 'admin');
+            document.querySelectorAll('.btn-manager').forEach(el => el.classList.toggle('hidden', !isAnyManager));
+        }
+
+        function switchTab(t) {
+            state.activeTab = t;
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.getElementById('tab-'+t).classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-800 transition";
+            });
+            
+            const activeBtn = document.getElementById('nav-'+t);
+            let colors = { 'calendar':'bg-emerald-600', 'task':'bg-sky-600', 'roster':'bg-emerald-600', 'sheet':'bg-red-500', 'media':'bg-purple-500', 'chat':'bg-indigo-600', 'bbs':'bg-orange-500' };
+            if(activeBtn) activeBtn.className = `nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg font-bold text-white ${colors[t]} shadow-sm transition`;
+            
+            if(t==='calendar') chgMonth(0);
+        }
+
+        function initTimeOpts() {
+            let html = "";
+            for(let h=0; h<24; h++) {
+                let val = String(h).padStart(2,'0')+":00";
+                html += `<option value="${val}">${val}</option>`;
+            }
+            document.querySelectorAll('#evStart, #evEnd').forEach(el => el.innerHTML = html);
+        }
+        window.addEventListener('DOMContentLoaded', initTimeOpts);
+
+        function toggleEvFields() {
+            const isPersonal = document.getElementById('evTarget').value === 'personal';
+            document.querySelectorAll('.group-field').forEach(el => el.disabled = isPersonal);
+            const rm = document.getElementById('evRemindRoom');
+            if(isPersonal) { rm.innerHTML = `<option value="auto_pers">個人カレンダーリマインドBot (自動生成)</option>`; rm.disabled = true; }
+            else { populateChatOpts(); rm.disabled = false; }
+        }
+
+        function chgMonth(offset) {
+            if(offset===0) state.dispMonth = new Date();
+            else state.dispMonth.setMonth(state.dispMonth.getMonth() + offset);
+            
+            const y = state.dispMonth.getFullYear(), m = state.dispMonth.getMonth();
+            document.getElementById('calYM').textContent = `${y}年 ${m+1}月`;
+            
+            const grid = document.getElementById('calGrid');
+            grid.innerHTML = "";
+            const days = new Date(y, m+1, 0).getDate();
+            const first = new Date(y, m, 1).getDay();
+            
+            for(let i=0; i<first; i++) grid.innerHTML += `<div class="bg-slate-100/50"></div>`;
+            
+            for(let d=1; d<=days; d++) {
+                let dStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                let evs = state.events.filter(e => e.date === dStr);
+                let isSel = dStr === state.selDate;
+                
+                let html = `<div onclick="selectDate('${dStr}')" class="bg-white p-1 cursor-pointer flex flex-col hover:bg-slate-50 relative ${isSel?'ring-2 ring-inset ring-emerald-500 z-10':''}">`;
+                html += `<div class="flex justify-between items-center"><span class="text-xs font-bold text-slate-600">${d}</span>`;
+                let canAdd = (state.currentUser.userGroups || []).some(ug=>ug.role==='manager') || state.currentUser.userGroups.length > 0;
+                if(canAdd) html += `<button onclick="event.stopPropagation(); document.getElementById('evDate').value='${dStr}'; toggleEvFields(); openModal('eventModal');" class="text-slate-300 hover:text-emerald-500"><i class="fa-solid fa-circle-plus"></i></button>`;
+                html += `</div><div class="space-y-0.5 mt-1 overflow-hidden">`;
+                
+                evs.forEach(e => {
+                    let g = state.groups.find(x => x.id === e.gid);
+                    let color = g ? g.color : '#64748b';
+                    html += `<div onclick="event.stopPropagation(); openEvDetail('${e.id}')" class="text-[9px] text-white px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition" style="background-color:${color}">${e.title}</div>`;
+                });
+                html += `</div></div>`;
+                grid.innerHTML += html;
+            }
+        }
+
+        function selectDate(dStr) {
+            state.selDate = dStr;
+            document.getElementById('selDateText').textContent = dStr;
+            renderEvents(dStr);
+            chgMonth(999);
+        }
+
+        function renderEvents(dStr) {
+            const box = document.getElementById('selDateEvents');
+            box.innerHTML = "";
+            let evs = state.events.filter(e => e.date === dStr);
+            if(evs.length===0) { box.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">予定なし</p>'; return; }
+            
+            evs.forEach(e => {
+                let g = state.groups.find(x => x.id === e.gid);
+                box.innerHTML += `
+                    <div onclick="openEvDetail('${e.id}')" class="p-2 border rounded-lg bg-white shadow-sm cursor-pointer hover:border-emerald-400">
+                        <div class="text-[9px] font-bold" style="color:${g?g.color:'#64748b'}">${g?g.name:'個人'}</div>
+                        <div class="font-bold text-slate-800">${e.title}</div>
+                        ${e.time ? `<div class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-clock"></i> ${e.time} @${e.loc}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        async function saveEvent() {
+            const e = {
+                id: "ev_"+Date.now(),
+                gid: document.getElementById('evTarget').value,
+                title: document.getElementById('evTitle').value,
+                date: document.getElementById('evDate').value,
+                time: document.getElementById('evTarget').value !== 'personal' ? `${document.getElementById('evStart').value}-${document.getElementById('evEnd').value}` : null,
+                loc: document.getElementById('evLoc').value,
+                memo: document.getElementById('evMemo').value
+            };
+            if(!e.title || !e.date) { showToast("必須入力"); return; }
+            
+            if(document.getElementById('evRemindChk').checked) {
+                let rm = document.getElementById('evRemindRoom').value;
+                if(rm === 'auto_pers') {
+                    rm = 'cr_pers_bot';
+                    if(!state.chatRooms.find(x=>x.id===rm)) {
+                        await saveChatRoomToDB({id:rm, gid:'personal', name:'個人カレンダーリマインドBot', msgs:[]});
+                    }
+                } else if(rm === 'auto_new') {
+                    rm = 'cr_remind_'+e.gid;
+                    if(!state.chatRooms.find(x=>x.id===rm)) {
+                        await saveChatRoomToDB({id:rm, gid:e.gid, name:'リマインド自動', msgs:[]});
+                    }
+                }
+                await addChatToDB(rm, "Bot", document.getElementById('evRemindMsg').value || `【予定リマインド】${e.title}`);
+            }
+            
+            if(db) await setDoc(getDocRef('events', e.id), e);
+            else { state.events.push(e); updateUIAll(); }
+            
+            closeModal('eventModal'); 
+        }
+
+        let curEvId = null;
+        function openEvDetail(id) {
+            curEvId = id;
+            const e = state.events.find(x => x.id === id);
+            document.getElementById('edTitle').textContent = e.title;
+            document.getElementById('edMeta').innerHTML = `
+                <p><i class="fa-regular fa-calendar"></i> ${e.date} ${e.time||''}</p>
+                <p><i class="fa-solid fa-location-dot"></i> ${e.loc||'未設定'}</p>
+                <p class="mt-2 text-slate-600">${e.memo}</p>
+            `;
+            
+            const isGrp = e.gid !== 'personal';
+            document.getElementById('edAttInput').classList.toggle('hidden', !isGrp);
+            document.getElementById('edCrossBox').classList.toggle('hidden', !isGrp);
+            
+            if(isGrp) {
+                const attData = state.attendances[e.id] || {};
+                const att = attData[state.currentUser.name];
+                if(att) {
+                    let r = document.querySelector(`input[name="edAtt"][value="${att.status}"]`);
+                    if(r) r.checked = true;
+                    document.getElementById('edAttOther').value = att.other || '';
+                }
+                
+                const cBox = document.getElementById('edCrossList');
+                cBox.innerHTML = '';
+                const rosts = state.rosters.filter(r => r.gid === e.gid && r.status === 'ans');
+                
+                rosts.forEach(r => {
+                    let html = `<div class="bg-white border rounded p-2"><div class="font-bold text-[10px] text-emerald-800 border-b pb-1 mb-1">${r.song} (${r.inst})</div><div class="flex flex-wrap gap-1">`;
+                    r.ans.forEach(a => {
+                        let s = (attData[a.name] || {}).status || '未回答';
+                        let c = 'bg-slate-100 text-slate-500';
+                        if(s==='出席') c='bg-emerald-100 text-emerald-700';
+                        if(s==='欠席') c='bg-rose-100 text-rose-700';
+                        if(s==='遅刻') c='bg-amber-100 text-amber-700';
+                        html += `<span class="px-1 py-0.5 rounded text-[9px] ${c}">${a.part}:${a.name}(${s})</span>`;
+                    });
+                    html += `</div></div>`;
+                    cBox.innerHTML += html;
+                });
+                
+                const isAdmin = (state.currentUser.userGroups || []).find(ug => ug.groupId === e.gid && (ug.role==='manager'||ug.role==='admin'));
+                const unBox = document.getElementById('edAdminUnans');
+                unBox.classList.toggle('hidden', !isAdmin);
+                if(isAdmin) {
+                    let allM = state.rosters.filter(r=>r.gid===e.gid&&r.status==='ans').flatMap(r=>r.ans.map(a=>a.name));
+                    let unans = [...new Set(allM)].filter(n => !attData[n]);
+                    document.getElementById('edAdminUnansList').textContent = unans.length ? `${unans.length}名: ${unans.join(', ')}` : '全員回答済み';
+                }
+            }
+            openModal('evDetailModal');
+        }
+
+        async function saveAtt() {
+            const v = document.querySelector('input[name="edAtt"]:checked')?.value;
+            if(!v) { showToast("選択してください"); return; }
+            
+            let attDoc = { id: curEvId, data: state.attendances[curEvId] || {} };
+            attDoc.data[state.currentUser.name] = { status: v, other: document.getElementById('edAttOther').value };
+            
+            if(db) await setDoc(getDocRef('attendances', curEvId), attDoc);
+            else { state.attendances[curEvId] = attDoc.data; openEvDetail(curEvId); }
+            showToast("保存しました");
+        }
+
+        // --- Task ---
+        function populateChatOpts() {
+            const els = [document.getElementById('tkRemindRoom'), document.getElementById('evRemindRoom')];
+            els.forEach(el => {
+                if(!el) return;
+                el.innerHTML = '<option value="auto_new">リマインドルームを新規生成</option>';
+                state.chatRooms.filter(c => c.gid !== 'personal').forEach(c => el.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+            });
+        }
+
+        function cancelTaskRemind() {
+            document.getElementById('tkRemindChk').checked = false;
+            state.taskRemindTemp.enabled = false;
+            closeModal('taskRemindModal');
+        }
+
+        function confirmTaskRemind() {
+            state.taskRemindTemp = {
+                enabled: true,
+                date: document.getElementById('tkRemindDate').value,
+                target: document.getElementById('tkRemindTarget').value,
+                room: document.getElementById('tkRemindRoom').value,
+                msg: document.getElementById('tkRemindMsg').value
+            };
+            closeModal('taskRemindModal');
+        }
+
+        function renderTasks() {
+            const box = document.getElementById('taskListContainer');
+            box.innerHTML = '';
+            state.groups.forEach(g => {
+                let tk = state.tasks.filter(t => t.gid === g.id);
+                if(tk.length===0) return;
+                let html = `<div class="bg-white border rounded-xl overflow-hidden shadow-sm"><div class="p-2.5 font-bold text-xs border-b" style="background-color:${g.color}15; color:${g.color}">${g.name}</div><div class="p-3 space-y-2">`;
+                tk.forEach(t => {
+                    let isEnd = new Date(t.limit) < new Date();
+                    html += `<div class="p-2 border rounded flex justify-between items-center ${isEnd?'bg-slate-50 opacity-60':''}">
+                        <div>
+                            <div class="font-bold text-slate-800 text-xs flex items-center gap-2">${t.title} ${t.remind ? '<span class="text-[9px] bg-sky-100 text-sky-700 px-1 rounded border border-sky-200">リマインド有</span>' : ''}</div>
+                            <div class="text-[10px] text-slate-500 mt-1">締切: ${t.limit}</div>
+                        </div>
+                        <button class="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold">完了</button>
+                    </div>`;
+                });
+                html += `</div></div>`;
+                box.innerHTML += html;
+            });
+        }
+
+        async function saveTask() {
+            const t = { 
+                id: "t_"+Date.now(), 
+                gid: document.getElementById('tkTarget').value, 
+                title: document.getElementById('tkTitle').value, 
+                limit: document.getElementById('tkLimit').value,
+                remind: state.taskRemindTemp.enabled ? {...state.taskRemindTemp} : null
+            };
+            if(!t.title) { showToast("タスク名が必要です"); return; }
+            
+            if(t.remind && t.remind.target === 'unans') {
+                t.remind.msg += "\n@未回答者 提出をお願いします！";
+            }
+            if(t.remind) {
+                let rId = t.remind.room;
+                if(rId === 'auto_new') {
+                    rId = "cr_" + Date.now();
+                    await saveChatRoomToDB({ id: rId, gid: t.gid, name: "タスクリマインド用", msgs: [] });
+                }
+                await addChatToDB(rId, "リマインドBot", t.remind.msg);
+            }
+
+            if(db) await setDoc(getDocRef('tasks', t.id), t);
+            else { state.tasks.push(t); updateUIAll(); }
+
+            closeModal('taskModal'); 
+            document.getElementById('tkRemindChk').checked = false;
+            state.taskRemindTemp.enabled = false;
+        }
+
+        // --- Archive ---
+        function openFolderModal(type) {
+            document.getElementById('fmType').value = type;
+            openModal('folderModal');
+        }
+        async function saveFolder() {
+            const f = {
+                id: "f_" + Date.now(),
+                type: document.getElementById('fmType').value,
+                gid: document.getElementById('fmTarget').value,
+                name: document.getElementById('fmName').value
+            };
+            if(db) await setDoc(getDocRef('folders', f.id), f);
+            else { state.folders.push(f); updateUIAll(); }
+            closeModal('folderModal'); 
+        }
+
+        function openLinkModal(type) {
+            document.getElementById('lmType').value = type;
+            updateFolderOptions();
+            openModal('linkModal');
+        }
+        function updateFolderOptions() {
+            const gid = document.getElementById('lmTarget').value;
+            const type = document.getElementById('lmType').value;
+            const sel = document.getElementById('lmFolder');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">未分類 (フォルダなし)</option>';
+            state.folders.filter(f => f.gid === gid && f.type === type).forEach(f => {
+                sel.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+            });
+        }
+        
+        async function saveLink() {
+            const l = {
+                id: "l_" + Date.now(),
+                type: document.getElementById('lmType').value,
+                gid: document.getElementById('lmTarget').value,
+                folderId: document.getElementById('lmFolder').value,
+                name: document.getElementById('lmName').value,
+                url: document.getElementById('lmUrl').value
+            };
+            if(db) await setDoc(getDocRef('links', l.id), l);
+            else { state.links.push(l); updateUIAll(); }
+            closeModal('linkModal'); 
+        }
+
+        async function deleteArchive(id) {
+            if(db) await deleteDoc(getDocRef('links', id));
+            else { state.links = state.links.filter(l => l.id !== id); updateUIAll(); }
+        }
+
+        function openMoveModal(id) {
+            const link = state.links.find(l => l.id === id);
+            if(!link) return;
+            document.getElementById('moveLinkId').value = id;
+            const sel = document.getElementById('moveFolderSelect');
+            sel.innerHTML = '<option value="">未分類 (フォルダから出す)</option>';
+            state.folders.filter(f => f.gid === link.gid && f.type === link.type).forEach(f => {
+                sel.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+            });
+            openModal('moveModal');
+        }
+
+        async function confirmMoveArchive() {
+            const id = document.getElementById('moveLinkId').value;
+            const fId = document.getElementById('moveFolderSelect').value;
+            const link = state.links.find(l => l.id === id);
+            if(link) {
+                link.folderId = fId;
+                if(db) await setDoc(getDocRef('links', id), link);
+                else updateUIAll();
+            }
+            closeModal('moveModal');
+        }
+
+        function renderArchives(type) {
+            const box = document.getElementById(type+'Container');
+            if(!box) return;
+            box.innerHTML = '';
+            const isManager = (state.currentUser.userGroups || []).some(ug => ug.role==='manager'||ug.role==='admin');
+
+            const flds = state.folders.filter(f => f.type === type);
+            const lks = state.links.filter(l => l.type === type);
+            let noFolderLinks = lks.filter(l => !l.folderId);
+            let html = '';
+
+            flds.forEach(f => {
+                let fLks = lks.filter(l => l.folderId === f.id);
+                html += `<div class="mb-3 border rounded-xl overflow-hidden bg-white shadow-sm">
+                    <div class="bg-slate-100 p-2.5 font-bold text-slate-700 text-xs flex justify-between items-center">
+                        <span><i class="fa-solid fa-folder-open text-amber-500 mr-1"></i> ${f.name}</span>
+                    </div>
+                    <div class="p-2 space-y-2">`;
+                if(fLks.length === 0) html += `<p class="text-[10px] text-slate-400 pl-2">ファイルなし</p>`;
+                fLks.forEach(l => { html += generateLinkHtml(l, isManager); });
+                html += `</div></div>`;
+            });
+
+            if(noFolderLinks.length > 0) {
+                html += `<div class="mb-3 border rounded-xl overflow-hidden bg-white shadow-sm">
+                    <div class="bg-slate-50 p-2.5 font-bold text-slate-600 text-xs">未分類</div>
+                    <div class="p-2 space-y-2">`;
+                noFolderLinks.forEach(l => { html += generateLinkHtml(l, isManager); });
+                html += `</div></div>`;
+            }
+            box.innerHTML = html || '<p class="text-xs text-slate-400">登録なし</p>';
+        }
+
+        function generateLinkHtml(l, isManager) {
+            let menuBtn = isManager ? `
+                <div class="relative group ml-1">
+                    <button onclick="toggleMenu('menu_${l.id}')" class="text-slate-400 hover:text-slate-600 px-2 py-1"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                    <div id="menu_${l.id}" class="archive-menu hidden absolute right-0 mt-1 w-24 bg-white border rounded shadow-lg z-10 text-xs py-1">
+                        <a onclick="openMoveModal('${l.id}')" class="block px-3 py-1.5 hover:bg-slate-50 cursor-pointer">移動</a>
+                        <a onclick="deleteArchive('${l.id}')" class="block px-3 py-1.5 text-rose-600 hover:bg-rose-50 cursor-pointer">削除</a>
+                    </div>
+                </div>
+            ` : '';
+            let icon = l.type === 'sheet' ? 'fa-file-pdf text-red-500' : 'fa-photo-film text-purple-500';
+            return `<div class="p-2 bg-slate-50 border rounded flex items-center justify-between">
+                <a href="${l.url}" target="_blank" class="font-bold text-xs hover:underline flex items-center gap-2">
+                    <i class="fa-solid ${icon}"></i> ${l.name}
+                </a>
+                <div class="flex items-center">
+                    <a href="${l.url}" target="_blank" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-100">開く</a>
+                    ${menuBtn}
+                </div>
+            </div>`;
+        }
+
+        // --- Chat ---
+        function openCreateChatModal() {
+            const memBox = document.getElementById('ccMembers');
+            memBox.innerHTML = '';
+            state.members.forEach(m => {
+                memBox.innerHTML += `
+                    <label class="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-100 rounded border border-transparent hover:border-slate-200 transition">
+                        <input type="checkbox" value="${m.name}" class="cc-member-chk" checked> 
+                        <span class="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">${m.part}</span> 
+                        <span class="font-bold text-slate-700">${m.name}</span>
+                    </label>
+                `;
+            });
+            document.getElementById('ccName').value = '';
+            document.getElementById('ccCheckAll').checked = true;
+            document.getElementById('ccPostRole').value = 'all';
+            openModal('createChatModal');
+        }
+
+        function toggleAllChatMembers(checked) {
+            document.querySelectorAll('.cc-member-chk').forEach(el => el.checked = checked);
+        }
+
+        async function saveChatRoomToDB(c) {
+            if(db) await setDoc(getDocRef('chatRooms', c.id), c);
+            else { state.chatRooms.push(c); updateUIAll(); }
+        }
+
+        async function saveChatRoom() {
+            const target = document.getElementById('ccTarget').value;
+            const name = document.getElementById('ccName').value;
+            const postRole = document.getElementById('ccPostRole').value;
+            if(!name) { showToast("ルーム名を入力してください"); return; }
+            
+            const selectedMembers = Array.from(document.querySelectorAll('.cc-member-chk:checked')).map(el => el.value);
+            if(selectedMembers.length === 0) { showToast("参加者を1人以上選択してください"); return; }
+
+            await saveChatRoomToDB({
+                id: "cr_" + Date.now(),
+                gid: target, name: name, members: selectedMembers, postRole: postRole,
+                msgs: [{sender:"システム", text:`${name}ルームが作成されました`}]
+            });
+            
+            closeModal('createChatModal');
+        }
+
+        function renderChatList() {
+            const box = document.getElementById('chatRoomList');
+            box.innerHTML = '';
+            
+            const grouped = {};
+            state.chatRooms.forEach(c => {
+                if(!grouped[c.gid]) grouped[c.gid] = [];
+                grouped[c.gid].push(c);
+            });
+
+            for(let gid in grouped) {
+                let g = state.groups.find(x => x.id === gid);
+                let gName = g ? g.name : (gid === 'personal' ? '個人' : 'その他');
+                
+                box.innerHTML += `<div class="bg-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600">${gName}</div>`;
+                grouped[gid].forEach(c => {
+                    let isAct = state.activeChat === c.id;
+                    let bg = isAct ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-slate-50 border-l-4 border-transparent border-b';
+                    box.innerHTML += `<div onclick="state.activeChat='${c.id}'; renderChat();" class="p-2 cursor-pointer text-xs ${bg}">
+                        <div class="font-bold text-slate-700">${c.name}</div>
+                    </div>`;
+                });
+            }
+            if(!state.activeChat && state.chatRooms.length) state.activeChat = state.chatRooms[0].id;
+            renderChat();
+        }
+
+        function renderChat() {
+            const c = state.chatRooms.find(x=>x.id===state.activeChat);
+            if(!c) return;
+            document.getElementById('chatActiveHead').innerHTML = `<span class="font-bold text-slate-700 text-xs">${c.name}</span>`;
+            
+            const box = document.getElementById('chatMsgBox');
+            box.innerHTML = c.msgs.map(m => `<div class="mb-2 text-xs bg-white p-2 rounded shadow-sm inline-block max-w-[80%] border-l-2 ${m.sender.includes('Bot')?'border-amber-400':(m.sender==='システム'?'border-slate-400':'border-indigo-400')}"><div class="font-bold text-slate-600 mb-0.5 text-[10px]">${m.sender}</div>${m.text}</div><br>`).join('');
+            box.scrollTop = box.scrollHeight;
+
+            let canPost = true;
+            if(c.postRole && c.postRole !== 'all') {
+                let ug = (state.currentUser.userGroups || []).find(x => x.groupId === c.gid);
+                if(ug) {
+                    if(c.postRole === 'admin' && !(ug.role === 'manager' || ug.role === 'admin')) canPost = false;
+                    if(c.postRole === 'leader' && !(ug.role === 'manager' || ug.role === 'admin' || ug.role === 'leader')) canPost = false;
+                }
+            }
+
+            const inputArea = document.getElementById('chatInputArea');
+            if(canPost) {
+                inputArea.innerHTML = `
+                    <input type="text" id="chatInput" placeholder="メッセージ..." class="flex-1 border rounded p-2 text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                    <button onclick="sendChat()" class="px-4 py-2 bg-indigo-600 text-white rounded font-bold text-xs">送信</button>
+                `;
+            } else {
+                inputArea.innerHTML = `<div class="text-xs text-slate-500 text-center font-bold w-full py-2 bg-slate-100 rounded border">発言権限がありません</div>`;
+            }
+        }
+
+        async function addChatToDB(id, sender, text) {
+            let c = state.chatRooms.find(x=>x.id===id);
+            if(c) {
+                c.msgs.push({sender, text});
+                if(db) await setDoc(getDocRef('chatRooms', id), c);
+                else renderChat();
+            }
+        }
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            if(!input || !input.value) return;
+            await addChatToDB(state.activeChat, state.currentUser.name, input.value);
+            if(!db) document.getElementById('chatInput').value = '';
+        }
+
+        // --- BBS ---
+        async function saveBbs() {
+            const b = {
+                id: "b_"+Date.now(),
+                cat: document.getElementById('bbsCat').value,
+                title: document.getElementById('bbsTitle').value,
+                desc: document.getElementById('bbsDesc').value,
+                author: state.currentUser.name,
+                contact: document.getElementById('bbsContact').value,
+                replies: []
+            };
+            if(db) await setDoc(getDocRef('bbs', b.id), b);
+            else { state.bbs.push(b); updateUIAll(); }
+            closeModal('createBbsModal'); 
+        }
+        function renderBbsList() {
+            const box = document.getElementById('bbsList');
+            box.innerHTML = '';
+            state.bbs.forEach(b => {
+                box.innerHTML += `<div onclick="state.activeBbs='${b.id}'; renderBbs();" class="p-2 border rounded bg-white shadow-sm cursor-pointer hover:border-orange-300">
+                    <div class="text-[9px] text-orange-600 font-bold mb-1">${b.cat}</div><div class="font-bold text-xs">${b.title}</div>
+                </div>`;
+            });
+            if(!state.activeBbs && state.bbs.length) state.activeBbs = state.bbs[0].id;
+            renderBbs();
+        }
+        function renderBbs() {
+            const b = state.bbs.find(x=>x.id===state.activeBbs);
+            const head = document.getElementById('bbsActiveHead');
+            const rep = document.getElementById('bbsReplies');
+            if(!b) { head.innerHTML=''; rep.innerHTML=''; return; }
+            
+            head.innerHTML = `<h3 class="font-bold text-orange-900">${b.title}</h3>
+                <div class="mt-2 text-xs text-orange-800 whitespace-pre-wrap">${b.desc}</div>
+                <div class="mt-2 text-[10px] text-orange-700">投稿者: ${b.author} ${b.contact?'/ 連絡先: '+b.contact:''}</div>`;
+            rep.innerHTML = b.replies.map((r,i) => `<div class="border-b pb-2 text-xs"><span class="font-bold text-slate-700">${i+1}. ${r.name}</span> <span class="text-slate-700 mt-1 block">${r.text}</span></div>`).join('');
+        }
+        async function sendBbsReply() {
+            const v = document.getElementById('bbsReplyInput').value;
+            let b = state.bbs.find(x=>x.id===state.activeBbs);
+            if(v && b) { 
+                b.replies.push({name: state.currentUser.name, text: v}); 
+                if(db) await setDoc(getDocRef('bbs', b.id), b);
+                else { document.getElementById('bbsReplyInput').value=''; renderBbs(); }
+            }
+        }
+
+        // --- Group Mgmt ---
+        async function submitCreateGroup() {
+            const n = document.getElementById('cgName').value;
+            const p = document.getElementById('cgPass').value;
+            if(!n || !p) { showToast("必須入力です"); return; }
+            const gid = "g_" + Date.now();
+            const g = { id: gid, name: n, password: p, color: "#" + Math.floor(Math.random()*16777215).toString(16) };
+            
+            state.currentUser.userGroups.push({ groupId: gid, role: 'manager' });
+            
+            if(db) {
+                await setDoc(getDocRef('groups', g.id), g);
+                await setDoc(getDocRef('members', state.currentUser.name), state.currentUser);
+            } else {
+                state.groups.push(g); updateUIAll();
+            }
+            closeModal('createGroupModal');
+        }
+
+        function generateInviteCode() {
+            const gid = document.getElementById('icGroup').value;
+            const gp = document.getElementById('icPass').value;
+            const rl = document.getElementById('icRole').value;
+            const g = state.groups.find(x => x.id === gid);
+            if(!g || g.password !== gp) { showToast("パスワードが違います"); return; }
+            const code = `${gid}_${rl}_${Math.random().toString(36).substr(2,6).toUpperCase()}`;
+            document.getElementById('icCodeText').textContent = code;
+            document.getElementById('icResult').classList.remove('hidden');
+        }
+
+        async function joinGroup() {
+            const code = document.getElementById('jgCode').value;
+            const parts = code.split('_');
+            if(parts.length !== 4) { showToast("無効なコードです"); return; }
+            const gid = parts[0]+"_"+parts[1];
+            const role = parts[2];
+            
+            if(state.currentUser.userGroups.find(x => x.groupId === gid)) { showToast("既に参加済みです"); return; }
+            state.currentUser.userGroups.push({ groupId: gid, role: role });
+            
+            if(db) await setDoc(getDocRef('members', state.currentUser.name), state.currentUser);
+            else updateUIAll();
+            
+            showToast("団体に参加しました");
+            closeModal('joinGroupModal');
+        }
+
+        function renderRosters() {}
+
+        // Map functions to window for inline HTML handlers
+        Object.assign(window, {
+            showToast, openModal, closeModal, toggleMenu, submitAuth, updateProfile, sendPwdCode,
+            updatePassword, updateUIAll, renderSidebar, populateTargetSelects, updatePermissions,
+            switchTab, chgMonth, selectDate, renderEvents, openEvDetail, saveAtt,
+            populateChatOpts, cancelTaskRemind, confirmTaskRemind, renderTasks, saveTask,
+            renderRosters, openFolderModal, saveFolder, openLinkModal, updateFolderOptions,
+            saveLink, deleteArchive, openMoveModal, confirmMoveArchive, renderArchives,
+            openCreateChatModal, toggleAllChatMembers, saveChatRoom, renderChatList,
+            renderChat, sendChat, saveBbs, renderBbsList, renderBbs, sendBbsReply,
+            submitCreateGroup, generateInviteCode, joinGroup, toggleEvFields
+        });
+
+        initCloud();
+    </script>
+</body>
+</html>
